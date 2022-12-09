@@ -11,14 +11,14 @@ from PIL import Image
 import torch
 from torchvision import transforms
 from torchvision.transforms.functional import InterpolationMode
-import cog
+from cog import BasePredictor, Path, Input
 
 from models.blip import blip_decoder
 from models.blip_vqa import blip_vqa
 from models.blip_itm import blip_itm
 
 
-class Predictor(cog.Predictor):
+class Predictor(BasePredictor):
     def setup(self):
         self.device = "cuda:0"
 
@@ -31,40 +31,44 @@ class Predictor(cog.Predictor):
                                             image_size=384, vit='base')
         }
 
-    @cog.input(
-        "image",
-        type=Path,
-        help="input image",
-    )
-    @cog.input(
-        "task",
-        type=str,
-        default='image_captioning',
-        options=['image_captioning', 'visual_question_answering', 'image_text_matching'],
-        help="Choose a task.",
-    )
-    @cog.input(
-        "question",
-        type=str,
-        default=None,
-        help="Type question for the input image for visual question answering task.",
-    )
-    @cog.input(
-        "caption",
-        type=str,
-        default=None,
-        help="Type caption for the input image for image text matching task.",
-    )
-    def predict(self, image, task, question, caption):
-        if task == 'visual_question_answering':
-            assert question is not None, 'Please type a question for visual question answering task.'
-        if task == 'image_text_matching':
-            assert caption is not None, 'Please type a caption for mage text matching task.'
+    def predict(
+        self,
+        image: Path = Input(
+            description="Input image",
+        ),
+        task: str = Input(
+            choices=[
+                "image_captioning",
+                "visual_question_answering",
+                "image_text_matching",
+            ],
+            default="image_captioning",
+            description="Choose a task.",
+        ),
+        question: str = Input(
+            default=None,
+            description="Type question for the input image for visual question answering task.",
+        ),
+        caption: str = Input(
+            default=None,
+            description="Type caption for the input image for image text matching task.",
+        ),
+    ) -> str:
+        if task == "visual_question_answering":
+            assert (
+                question is not None
+            ), "Please type a question for visual question answering task."
+        if task == "image_text_matching":
+            assert (
+                caption is not None
+            ), "Please type a caption for mage text matching task."
 
         im = load_image(image, image_size=480 if task == 'visual_question_answering' else 384, device=self.device)
         model = self.models[task]
         model.eval()
         model = model.to(self.device)
+
+        print("heho")
 
         if task == 'image_captioning':
             with torch.no_grad():
